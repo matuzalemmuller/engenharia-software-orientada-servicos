@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <spring:beans>
+        <spring:bean name="helloWorldJava" class="br.ufsc.das.helloWorldJava"/>
+    </spring:beans>
+
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+
+    <flow name="get_hello/hello">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/hello" doc:name="HTTP">
+            <http:error-response-builder statusCode="404" reasonPhrase="Not Found">
+                <http:header headerName="error" value="not-found"/>
+            </http:error-response-builder>
+        </http:listener>
+        <set-payload value="#[&quot;Hello world!&quot;]" doc:name="Set Payload"/>
+        <logger message="I have received a hello" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="get_hello_from_java/hellojava?name=name">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/hellojava" doc:name="HTTP"/>
+        <invoke object-ref="helloWorldJava" method="hello" methodArguments="#[message.inboundProperties.'http.query.params'.name]" doc:name="Invoke" />
+    </flow>
+    <flow name="print_name_using_java/hellojavaclass">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/hellojavaclass" doc:name="HTTP"/>
+        <http:static-resource-handler resourceBase="src/site" doc:name="HTTP Static Resource Handler" defaultFile="index.html"/>
+        <logger level="DEBUG" doc:name="Logger" message="App path is ${app.home}"/>
+    </flow>
+    <flow name="print_name_using_java/hellojavaclass/tratarFormulario">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/hellojavaclass/tratarFormulario" doc:name="HTTP"/>
+        <component class="br.ufsc.das.Tratamento" doc:name="Java"/>
+        <object-to-string-transformer mimeType="text/plain" doc:name="Object to String"/>
+    </flow>
+</mule>

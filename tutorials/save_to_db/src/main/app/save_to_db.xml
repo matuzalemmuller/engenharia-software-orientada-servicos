@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="main_page">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/" doc:name="HTTP"/>
+        <http:static-resource-handler resourceBase="src/site" defaultFile="index.html" doc:name="HTTP Static Resource Handler"/>
+    </flow>
+    <flow name="save_to_db_flow/tratarForm">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/tratarForm" doc:name="HTTP"/>
+        <component class="br.ufsc.das.Tratamento" doc:name="Tratar Pedido"/>
+        <component class="br.ufsc.das.Dao" doc:name="Persistir Pedido"/>
+        <component class="br.ufsc.das.ImprimirPedido" doc:name="Imprimir Pedido"/>
+        <object-to-string-transformer mimeType="text/plain" doc:name="Object to String"/>
+    </flow>
+</mule>
