@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:smtps="http://www.mulesoft.org/schema/mule/smtps" xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
+http://www.mulesoft.org/schema/mule/smtps http://www.mulesoft.org/schema/mule/smtps/current/mule-smtps.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="email_attachmentFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/generate_report" doc:name="HTTP"/>
+        <component class="br.ufsc.das.ObterPedidos" doc:name="Get Orders"/>
+        <response>
+            <set-payload value="Sales report will be sent to #[message.outboundProperties.'receiverEmail']." doc:name="Print Confirmation"/>
+        </response>
+        <set-property propertyName="receiverEmail" value="example@email.com" doc:name="Add Receiver Email Address"/>
+        <async doc:name="Async">
+            <component class="br.ufsc.das.GerarRelatorio" doc:name="Create Report"/>
+            <set-attachment attachmentName="Sales_Report.xls" value="#[message.payload]" contentType="text/plain" doc:name="Add Attachment"/>
+            <set-payload value="See attachment.
+
+" doc:name="Create Email"/>
+            <smtps:outbound-endpoint host="smtp.example" port="123" user="exampleuser" password="examplepassword" to="#[message.outboundProperties.'receiverEmail']" from="example@email.com" subject="NewTec Sales Report" responseTimeout="10000" doc:name="Send Sales Report"/>
+        </async>
+    </flow>
+</mule>

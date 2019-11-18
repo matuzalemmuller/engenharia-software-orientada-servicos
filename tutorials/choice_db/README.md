@@ -1,10 +1,11 @@
 ## Description
 
-Saving an example purchase in a MySQL database using [Mule ESB](https://www.mulesoft.com/resources/esb/what-mule-esb).
+Example using `choice` and `database` components from [Mule ESB](https://www.mulesoft.com/resources/esb/what-mule-esb).
 
 ## Requests supported
 
-* GET /
+* GET /test?database=db1
+* GET /test?database=db2
 
 ## Notes
 
@@ -23,4 +24,5 @@ Saving an example purchase in a MySQL database using [Mule ESB](https://www.mule
         PRIMARY KEY(CODIGO)
     )
     ```
-    * The username and the password of the database are defined in the `src/main/java/br/ufsc/das/Dao.java` file.
+    * The username and the password of the database are defined in the `DB_1` and `DB_2` components from Mule ESB.
+    * It is recommended to add values to the database so the `select` operation returns valid entries.
