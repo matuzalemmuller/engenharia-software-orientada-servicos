@@ -56,3 +56,7 @@ local.properties
 flows/
 target/
 src/main/api/.repository/ 
+Icon
+
+# Project specific
+tutorials/newtec

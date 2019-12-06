@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>NewTec</title>
+<meta charset="UTF-8">
+<link rel="stylesheet" type="text/css" href="mystyle.css">
+<meta name="viewport" content="width=device-width">
+
+<style>
+.quantity::-webkit-inner-spin-button, 
+.quantity::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+</style>
+
+</head>
+<body>
+
+	<h1>NewTec</h1>
+	<hr>
+	<p>
+		Bem vindo a NewTec.<br>
+	</p>
+	<form action="/processarCompra" method="post" >
+ 		1- Reator Ark - Quantidade:<input type="number" id="QRA" name="QRA" value="0" min="0" style='width:1cm'>
+		<br>
+		2- Reator Solar - Quantidade:<input type="number" id="QRS" name="QRS" value="0" min="0" style='width:1cm'>
+		<br>
+		3- Robô Doméstico - Quantidade:<input type="number" id="RBD" name="RBD" value="0" min="0" style='width:1cm'>
+		<br>
+		4- Robô de Segurança - Quantidade:<input type="number" id="RBS" name="RBS" value="0" min="0" style='width:1cm'>
+		<br>
+		5- Robô Médico - Quantidade:<input type="number" id="RBM" name="RBM" value="0" min="0" style='width:1cm'>
+		<br>
+		<hr>
+		Nome:  <input type="text" id="nome" name="nome" placeholder="Joao da Silva" style='width:7cm'>
+		<br>
+		CPF:  <input type="number" id="cpf" name="cpf" placeholder="1234567890" style='width:2.5cm' class="quantity">
+		<br>
+		Telefone:  <input type="number" id="telefone" name="telefone" placeholder="1234567890" style='width:2.5cm' class="quantity">
+		<br>
+		Email:  <input type="text" id="email" name="email" placeholder="exemplo@newtec.com.br" style='width:6cm'>
+		<br>
+		CEP:  <input type="number" id="cep" name="cep" placeholder="88101050" style='width:2.5cm' class="quantity">
+		<br>
+		Número cartão crédito:  <input type="number" id="cartao" name="cartao" placeholder="4111111111111111" style='width:2.5cm' class="quantity">
+		<br>
+		CVV:  <input type="number" id="cvv" name="cvv" placeholder="123" style='width:1cm' class="quantity">
+		<br>
+		Data de validade:  <input type="date" id="validade" name="validade" style='width:3cm' min="2019-01-01">
+		<hr>
+ 		<input type="submit" value="Continuar"> <input type="reset" value="Cancel">
+
+ 	</form>
+
+</body>
+</html>

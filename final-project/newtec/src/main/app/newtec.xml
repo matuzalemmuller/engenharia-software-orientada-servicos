@@ -1,0 +1,647 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:ws="http://www.mulesoft.org/schema/mule/ws"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:smtps="http://www.mulesoft.org/schema/mule/smtps"
+	xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:rmi="http://www.mulesoft.org/schema/mule/rmi"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ws http://www.mulesoft.org/schema/mule/ws/current/mule-ws.xsd
+http://www.mulesoft.org/schema/mule/smtps http://www.mulesoft.org/schema/mule/smtps/current/mule-smtps.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/rmi http://www.mulesoft.org/schema/mule/rmi/current/mule-rmi.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+
+	<spring:beans>
+		<spring:bean name="TratarCompra" class="br.ufsc.das.TratarCompra" />
+        <spring:bean name="ProcessamentoVisa" class="br.ufsc.das.ProcessamentoVisa"/>
+        <spring:bean name="ProcessamentoMastercard" class="br.ufsc.das.ProcessamentoMastercard"/>
+        <spring:bean name="LancarExcecaoCartaoNaoReconhecido" class="br.ufsc.das.LancarExcecaoCartaoNaoReconhecido"/>
+        <spring:bean name="TratarPedidoNotaFiscal" class="br.ufsc.das.TratarPedidoNotaFiscal"/>
+        <spring:bean name="MontaXmlNotaFiscal" class="br.ufsc.das.MontaXmlNotaFiscal"/>
+	</spring:beans>
+
+	<http:listener-config name="HTTP_Listener_Configuration"
+		host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration" />
+    <ws:consumer-config name="Web_Service_Consumer" wsdlLocation="http://localhost:8080/StarkSystem-eclipse/StarkSystemService?wsdl" service="StarkSystemService" port="StarkSystemServicePort" serviceAddress="http://localhost:8080/StarkSystem-eclipse/StarkSystemService" doc:name="Web Service Consumer"/>
+	<rmi:connector name="RMI" securityPolicy="${app.home}/java_policy"
+		validateConnections="true" jndiInitialFactory="com.sun.jndi.rmi.registry.RegistryContextFactory"
+		jndiProviderUrl="rmi://127.0.0.1:11099" doc:name="RMI" />
+	<http:request-config name="ConfiguracaoWebServicesUFSC"
+		protocol="HTTPS" host="host.address" port="443"
+		doc:name="HTTP Request Configuration" />
+    <http:request-config name="HTTP_Request_Configuration" host="localhost" port="8903" doc:name="HTTP Request Configuration"/>
+    <smtp:connector name="SMTP" fromAddress="testedas@sistemas.ufsc.br" validateConnections="true" doc:name="SMTP"/>
+    <db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" database="NewTec" doc:name="MySQL Configuration"/>
+    <http:request-config name="HTTP_Request_BrRobotics" host="localhost" port="5000" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="HTTP_Request_NotaFiscal" host="localhost" port="8903" doc:name="HTTP Request Configuration"/>
+    <flow name="RelatorioVendas">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/relatorio" doc:name="HTTP"/>
+        <http:static-resource-handler resourceBase="${app.home}/docroot" defaultFile="relatorio.html" doc:name="Mostra Pagina Relatorio"/>
+    </flow>
+    <flow name="ProcessaRelatorio">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/processarRelatorio" doc:name="HTTP"/>
+        <response>
+            <set-payload value="#['O email sera enviado em breve...']" doc:name="Confirma que email esta sendo enviado"/>
+        </response>
+        <set-property propertyName="emailDestinatario" value="#[payload.email]" doc:name="Propriedade: emailDestinatario"/>
+        <async doc:name="Async">
+            <db:select config-ref="MySQL_Configuration" doc:name="Executa Select na DB">
+                <db:dynamic-query><![CDATA[SELECT * FROM PEDIDOS;]]></db:dynamic-query>
+            </db:select>
+            <json:object-to-json-transformer doc:name="Object to JSON"/>
+            <dw:transform-message doc:name="Cria CSV">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/csv
+---
+{}]]></dw:set-payload>
+                <dw:set-variable variableName="pedidos"><![CDATA[%dw 1.0
+%output application/csv
+---
+payload]]></dw:set-variable>
+            </dw:transform-message>
+            <set-attachment attachmentName="Relatorio.csv" value="#[flowVars.pedidos]" contentType="text/csv" doc:name="Adiciona Relatorio"/>
+            <set-payload value="#[&quot;Relatorio completo de vendas em anexo.\n\n&quot;]" doc:name="Define mensagem de corpo do texto"/>
+            <smtps:outbound-endpoint host="smtp.host" port="123" user="senha" password="senha" to="#[message.outboundProperties.'emailDestinatario']" from="email@exemplo.com" subject="NewTec - Relatorio de Vendas" responseTimeout="10000" doc:name="Envia Relatorio"/>
+            <logger message="EMAIL : Relatorio de Vendas Enviado" level="INFO" doc:name="Logger"/>
+        </async>
+    </flow>
+	<flow name="PaginaInicial">
+		<http:listener config-ref="HTTP_Listener_Configuration"
+			path="/" doc:name="HTTP" />
+		<http:static-resource-handler
+			resourceBase="${app.home}/docroot" defaultFile="index.html"
+			doc:name="Mostrar Pagina Inicial" />
+	</flow>
+	<flow name="ProcessaPedido">
+		<http:listener config-ref="HTTP_Listener_Configuration"
+			path="/processarCompra" doc:name="HTTP" />
+		<dw:transform-message doc:name="Variavel: pedido_inicial"
+			metadata:id="62e5bd94-1128-4cfd-ba5d-ceff7ff2e042">
+			<dw:input-payload mimeType="application/java" />
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{}]]></dw:set-payload>
+			<dw:set-variable variableName="pedido_inicial"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	qtdReatorArk : payload.QRA,
+	qtdReatorSolar : payload.QRS,
+	qtdRoboDomestico : payload.RBD,
+	qtdRoboMedico : payload.RBM,
+	qtdRoboSeguranca : payload.RBS,
+	cep : payload.cep,
+	nome : payload.nome,
+	validade : payload.validade,
+	cvv : payload.cvv,
+	cartao : payload.cartao,
+	cpf : payload.cpf,
+	telefone: payload.telefone,
+	email: payload.email
+}]]></dw:set-variable>
+		</dw:transform-message>
+        <processor-chain doc:name="VERIFICA_DADOS">
+            <set-payload value="#[flowVars.pedido_inicial]" doc:name="Payload: pedido_inicial"/>
+            <flow-ref name="VerificaDados" doc:name="VerificaDados"/>
+        </processor-chain>
+        <processor-chain doc:name="CEP">
+            <set-payload value="#[flowVars.pedido_inicial.cep]" doc:name="Payload: CEP"/>
+            <flow-ref name="CEP" doc:name="CEP"/>
+        </processor-chain>
+        <processor-chain doc:name="FORNECEDORES">
+            <dw:transform-message doc:name="Payload: Pedido para Fornecedores" metadata:id="a8469e26-d3a8-4594-a63b-eb51dd64ccb2">
+                <dw:input-variable mimeType="application/java" variableName="endereco_completo"/>
+                <dw:input-variable mimeType="application/java" variableName="pedido_inicial"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	cliente : flowVars.pedido_inicial.nome,
+	estado : flowVars.endereco_completo.estado,
+	endereco : flowVars.endereco_completo.rua,
+	qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+	qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar,
+	qtdRoboDomestico : flowVars.pedido_inicial.qtdRoboDomestico,
+	qtdRoboMedico : flowVars.pedido_inicial.qtdRoboMedico,
+	qtdRoboSeguranca : flowVars.pedido_inicial.qtdRoboSeguranca
+}]]></dw:set-payload>
+            </dw:transform-message>
+            <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+            <flow-ref name="PedidosFornecedoresComExcecao" doc:name="PedidosFornecedores"/>
+        </processor-chain>
+        <processor-chain doc:name="COMISSAO">
+            <set-payload value="#[Float.parseFloat(flowVars.total)]" doc:name="Payload: Total"/>
+            <flow-ref name="CalculoComissao" doc:name="CalculoComissao"/>
+        </processor-chain>
+        <processor-chain doc:name="FRETE">
+            <set-payload value="#[flowVars.endereco_completo.estado]" doc:name="Payload: Estado"/>
+            <flow-ref name="CalculoFrete" doc:name="CalculoFrete"/>
+        </processor-chain>
+        <processor-chain doc:name="PROCESSA_CARTAO">
+            <set-payload value="#[flowVars.pedido_inicial.cartao]" doc:name="Payload: Numero CC"/>
+            <flow-ref name="ProcessaCartaoCredito" doc:name="ProcessaCartaoCredito"/>
+        </processor-chain>
+        <processor-chain doc:name="NOTA_FISCAL">
+            <dw:transform-message doc:name="Payload: Pedido para Nota Fiscal" metadata:id="8228c610-a9da-49ef-aa05-05a93578fa04">
+                <dw:input-variable mimeType="application/java" variableName="comissao"/>
+                <dw:input-variable mimeType="application/java" variableName="endereco_completo"/>
+                <dw:input-variable mimeType="application/java" variableName="pedido_inicial"/>
+                <dw:input-variable mimeType="application/java" variableName="total"/>
+                <dw:input-variable mimeType="application/java" variableName="frete"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	cliente: flowVars.pedido_inicial.nome,
+	cpf: flowVars.pedido_inicial.cpf,
+	telefone: flowVars.pedido_inicial.telefone,
+	cep : flowVars.endereco_completo.cep,
+	estado : flowVars.endereco_completo.estado,
+	cidade : flowVars.endereco_completo.cidade,
+	bairro : flowVars.endereco_completo.bairro,
+	rua : flowVars.endereco_completo.rua,	
+	cartao : flowVars.pedido_inicial.cartao,
+	cvv : flowVars.pedido_inicial.cvv,
+	custoFrete : flowVars.frete,
+	total : flowVars.comissao,
+	qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+	qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar,
+	qtdRoboDomestico : flowVars.pedido_inicial.qtdRoboDomestico,
+	qtdRoboSeguranca : flowVars.pedido_inicial.qtdRoboSeguranca,
+	qtdRoboMedico : flowVars.pedido_inicial.qtdRoboMedico
+}]]></dw:set-payload>
+            </dw:transform-message>
+            <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+            <flow-ref name="NotaFiscal" doc:name="NotaFiscal"/>
+        </processor-chain>
+        <processor-chain doc:name="SALVA_PEDIDO">
+            <dw:transform-message doc:name="Payload e Variavel: Pedido para Persistencia" metadata:id="7b560d22-e281-4077-9850-16c62cb20b1c">
+                <dw:input-variable mimeType="application/java" variableName="comissao"/>
+                <dw:input-variable mimeType="application/java" variableName="endereco_completo"/>
+                <dw:input-variable mimeType="application/java" variableName="frete"/>
+                <dw:input-variable mimeType="application/java" variableName="pedido_inicial"/>
+                <dw:input-variable mimeType="application/java" variableName="total"/>
+                <dw:input-variable mimeType="application/java" variableName="nota_fiscal"/>
+                <dw:input-variable mimeType="application/java" variableName="autorizacao"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	cliente : flowVars.pedido_inicial.nome,
+	cpf : flowVars.pedido_inicial.cpf,
+	email: flowVars.pedido_inicial.email,
+	telefone : flowVars.pedido_inicial.telefone,
+	cep : flowVars.pedido_inicial.cep,
+	rua : flowVars.endereco_completo.rua,
+	cidade : flowVars.endereco_completo.cidade,
+	bairro : flowVars.endereco_completo.bairro,
+	estado : flowVars.endereco_completo.estado,
+	frete : flowVars.frete,
+	cartao : flowVars.pedido_inicial.cartao,
+	validade : flowVars.pedido_inicial.validade,
+	autorizacao : flowVars.autorizacao,
+	comissao : flowVars.comissao,
+	total : flowVars.total,
+	qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+	qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar,
+	qtdRoboDomestico : flowVars.pedido_inicial.qtdRoboDomestico,
+	qtdRoboSeguranca : flowVars.pedido_inicial.qtdRoboSeguranca,
+	qtdRoboMedico : flowVars.pedido_inicial.qtdRoboMedico
+}]]></dw:set-payload>
+                <dw:set-variable variableName="pedido_persistido"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	cliente : flowVars.pedido_inicial.nome,
+	cpf : flowVars.pedido_inicial.cpf,
+	email: flowVars.pedido_inicial.email,
+	telefone : flowVars.pedido_inicial.telefone,
+	cep : flowVars.pedido_inicial.cep,
+	rua : flowVars.endereco_completo.rua,
+	cidade : flowVars.endereco_completo.cidade,
+	bairro : flowVars.endereco_completo.bairro,
+	estado : flowVars.endereco_completo.estado,
+	frete : flowVars.frete,
+	cartao : flowVars.pedido_inicial.cartao,
+	validade : flowVars.pedido_inicial.validade,
+	autorizacao : flowVars.autorizacao,
+	total : flowVars.total,
+	qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+	qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar,
+	qtdRoboDomestico : flowVars.pedido_inicial.qtdRoboDomestico,
+	qtdRoboSeguranca : flowVars.pedido_inicial.qtdRoboSeguranca,
+	qtdRoboMedico : flowVars.pedido_inicial.qtdRoboMedico
+}]]></dw:set-variable>
+            </dw:transform-message>
+            <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+            <flow-ref name="PersistirPedidoNewTec" doc:name="PersistirPedidoNewTec"/>
+        </processor-chain>
+        <processor-chain doc:name="ENVIA_EMAIL">
+            <dw:transform-message doc:name="Payload: Pedido para Email" metadata:id="6cd1bcce-50f9-4ee2-a29c-ff8f938cdc76">
+                <dw:input-variable mimeType="application/java" variableName="nota_fiscal"/>
+                <dw:input-variable mimeType="application/java" variableName="autorizacao"/>
+                <dw:input-variable mimeType="application/java" variableName="comissao"/>
+                <dw:input-variable mimeType="application/java" variableName="endereco_completo"/>
+                <dw:input-variable mimeType="application/java" variableName="frete"/>
+                <dw:input-variable mimeType="application/java" variableName="pedido_inicial"/>
+                <dw:input-variable mimeType="application/java" variableName="total"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	cliente : flowVars.pedido_inicial.nome,
+	cpf : flowVars.pedido_inicial.cpf,
+	email: flowVars.pedido_inicial.email,
+	telefone : flowVars.pedido_inicial.telefone,
+	cep : flowVars.pedido_inicial.cep,
+	rua : flowVars.endereco_completo.rua,
+	cidade : flowVars.endereco_completo.cidade,
+	bairro : flowVars.endereco_completo.bairro,
+	estado : flowVars.endereco_completo.estado,
+	frete : flowVars.frete,
+	cartao : flowVars.pedido_inicial.cartao,
+	validade : flowVars.pedido_inicial.validade,
+	autorizacao : flowVars.autorizacao,
+	nota_codigo : flowVars.nota_fiscal.codigo,
+	nota_url : flowVars.nota_fiscal.url,
+	total : flowVars.comissao,
+	qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+	qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar,
+	qtdRoboDomestico : flowVars.pedido_inicial.qtdRoboDomestico,
+	qtdRoboSeguranca : flowVars.pedido_inicial.qtdRoboSeguranca,
+	qtdRoboMedico : flowVars.pedido_inicial.qtdRoboMedico
+}]]></dw:set-payload>
+            </dw:transform-message>
+            <flow-ref name="EmailCompra" doc:name="EmailCompra"/>
+        </processor-chain>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <choice-exception-strategy doc:name="Choice Exception Strategy">
+            <catch-exception-strategy when="#[exception.causedBy(java.net.ConnectException)]" doc:name="ErroConexao">
+                <set-payload value="#['&lt;b&gt;Erro na comunicacao com outros servicos. Tente novamente mais tarde ou contacte o administrador de seu sistema.&lt;/b&gt;&lt;br&gt;&lt;br&gt;Stack trace: ' + exception.cause]" doc:name="Exibe Erro"/>
+            </catch-exception-strategy>
+            <catch-exception-strategy doc:name="ErroGenerico">
+                <scripting:component doc:name="Remove referencia java da mensagem de erro">
+                    <scripting:script engine="Groovy"><![CDATA[payload = exception.cause.toString();
+	
+payload = payload.substring(payload.indexOf(':', 1));
+payload = payload.substring(payload.indexOf(':', 1));
+	
+result = payload;
+]]></scripting:script>
+                </scripting:component>
+                <set-payload value="#['Erro ' + payload]" mimeType="text/plain" doc:name="Exibe Erro"/>
+            </catch-exception-strategy>
+        </choice-exception-strategy>
+	</flow>
+    <sub-flow name="VerificaDados">
+        <scripting:component doc:name="Verifica Campos Vazios">
+            <scripting:script engine="Groovy"><![CDATA[if (payload.qtdReatorArk == "") {
+	throw new Exception("Quantidade de Reator Ark nao pode ser vazia!");
+}
+
+if (payload.qtdReatorSolar == "") {
+	throw new Exception("Quantidade de Reator Solar nao pode ser vazia!");
+}
+
+if (payload.qtdRoboDomestico == "") {
+	throw new Exception("Quantidade de Robo Doméstico nao pode ser vazia!");
+}
+
+if (payload.qtdRoboSeguranca == "") {
+	throw new Exception("Quantidade de Robo Seguranca nao pode ser vazia!");
+}
+
+if (payload.qtdRoboMedico == "") {
+	throw new Exception("Quantidade de Robo Medico nao pode ser vazia!");
+}
+
+if (payload.nome == "") {
+	throw new Exception("Nome nao pode ser vazio!");
+}
+
+if (payload.cpf == "") {
+	throw new Exception("CPF nao pode ser vazio!");
+}
+
+if (payload.telefone == "") {
+	throw new Exception("Telefone nao pode ser vazio!");
+}
+
+if (payload.email == "") {
+	throw new Exception("Email nao pode ser vazio!");
+}
+
+if (payload.cep == "") {
+	throw new Exception("CEP nao pode ser vazio!");
+}
+
+if (payload.cartao == "") {
+	throw new Exception("Cartao nao pode ser vazio!");
+}
+
+if (payload.cvv == "") {
+	throw new Exception("CVV nao pode ser vazio!");
+}
+
+if (payload.validade == "") {
+	throw new Exception("Data de Validade do Cartao nao pode ser vazio!");
+}
+
+payload = payload
+]]></scripting:script>
+        </scripting:component>
+        <scripting:component doc:name="Verifica Tipos Dados">
+            <scripting:script engine="Groovy"><![CDATA[try { 
+	Double.parseDouble(payload.cpf); 
+} catch(NumberFormatException e) { 
+	throw new Exception("CPF deve conter apenas numeros!");
+}
+
+try { 
+	Double.parseDouble(payload.telefone); 
+} catch(NumberFormatException e) { 
+	throw new Exception("Telefone deve conter apenas numeros!");
+}
+
+try { 
+	Double.parseDouble(payload.cep); 
+} catch(NumberFormatException e) { 
+	throw new Exception("CEP deve conter apenas numeros!");
+}
+
+try { 
+	Double.parseDouble(payload.cartao); 
+} catch(NumberFormatException e) { 
+	throw new Exception("Cartao de Credito deve conter apenas numeros!");
+}
+
+try { 
+	Double.parseDouble(payload.cvv); 
+} catch(NumberFormatException e) { 
+	throw new Exception("CVV deve conter apenas numeros!");
+}
+
+payload = payload]]></scripting:script>
+        </scripting:component>
+        <scripting:component doc:name="Verifica Carrinho Vazio">
+            <scripting:script engine="Groovy"><![CDATA[if ( Double.parseDouble(payload.qtdReatorArk) == 0 && Double.parseDouble(payload.qtdReatorSolar) == 0
+	&& Double.parseDouble(payload.qtdRoboDomestico) == 0 && Double.parseDouble(payload.qtdRoboSeguranca) == 0
+	&& Double.parseDouble(payload.qtdRoboMedico) == 0 ) {
+	throw new Exception("Carrinho esta vazio!");
+}
+
+payload = payload]]></scripting:script>
+        </scripting:component>
+        <logger message="DADOS VERIFICADOS" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+
+    <sub-flow name="CEP">
+        <http:request config-ref="ConfiguracaoWebServicesUFSC" path="/CEPService/cepInfo" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="cep" value="#[payload]"/>
+            </http:request-builder>
+        </http:request>
+        <choice doc:name="Trata Resultado Invalido">
+            <when expression="#[message.inboundProperties.'http.status' == '200']">
+                <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+                <dw:transform-message doc:name="Variavel: endereco_completo" metadata:id="1071ca3f-72b2-4a7c-b586-93faabc6ee16">
+                    <dw:input-payload mimeType="application/java"/>
+                    <dw:input-variable variableName="pedido_cep"/>
+                    <dw:input-variable mimeType="application/java" variableName="pedido_inicial"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+}]]></dw:set-payload>
+                    <dw:set-variable variableName="endereco_completo"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	rua: payload.logradouro,
+	cep: payload.cep,
+	estado: payload.uf,
+	bairro: payload.bairro,
+	cidade: payload.localidade
+}]]></dw:set-variable>
+                </dw:transform-message>
+                <logger message="CEP : #[flowVars.endereco_completo]" level="INFO" doc:name="Logger"/>
+            </when>
+            <otherwise>
+                <scripting:component doc:name="Excecao CEP Invalido">
+                    <scripting:script engine="Groovy"><![CDATA[throw new Exception("CEP Invalido");]]></scripting:script>
+                </scripting:component>
+            </otherwise>
+        </choice>
+    </sub-flow>
+    <sub-flow name="PedidosFornecedores">
+        <scatter-gather doc:name="Scatter-Gather">
+            <processor-chain>
+                <http:request config-ref="HTTP_Request_BrRobotics" path="/BrRobotics/rest/BrRoboticsService/inserirPedido" method="GET" doc:name="HTTP">
+                    <http:request-builder>
+                        <http:query-param paramName="cliente" value="#[payload.cliente]"/>
+                        <http:query-param paramName="estado" value="#[payload.estado]"/>
+                        <http:query-param paramName="endereco" value="#[payload.endereco]"/>
+                        <http:query-param paramName="qtdRoboDomestico" value="#[payload.qtdRoboDomestico]"/>
+                        <http:query-param paramName="qtdRoboSeguranca" value="#[payload.qtdRoboSeguranca]"/>
+                        <http:query-param paramName="qtdRoboMedico" value="#[payload.qtdRoboMedico]"/>
+                    </http:request-builder>
+                    <http:success-status-code-validator values="200"/>
+                </http:request>
+                <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+                <set-payload value="#[payload.total]" doc:name="Payload: total"/>
+            </processor-chain>
+            <processor-chain>
+                <dw:transform-message doc:name="Payload: inserirPedido">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace ns0 http://ws.starksystem.com/
+---
+{
+	ns0#inserirPedido: {
+		pedido: {
+			cliente : flowVars.pedido_inicial.nome,
+			endereco : flowVars.endereco_completo.rua,
+			estado : flowVars.endereco_completo.estado,
+			qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+			qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar
+		}
+	}	
+}]]></dw:set-payload>
+                </dw:transform-message>
+                <ws:consumer config-ref="Web_Service_Consumer" operation="inserirPedido" doc:name="Web Service Consumer"/>
+                <json:xml-to-json-transformer doc:name="XML to JSON"/>
+                <scripting:component doc:name="Payload: total">
+                    <scripting:script engine="jython" file="/Users/matuzalem/dev/engenharia-software-orientada-servicos/tutorials/newtec/src/main/python/get_total_soap.py"/>
+                </scripting:component>
+            </processor-chain>
+        </scatter-gather>
+        <set-variable variableName="total" value="#[Float.parseFloat(payload[0]) + Float.parseFloat(payload[1])]" doc:name="Variavel: total"/>
+        <logger message="FORNECEDORES: #[flowVars.total]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="PedidosFornecedoresComExcecao">
+        <http:request config-ref="HTTP_Request_BrRobotics" path="/BrRobotics/rest/BrRoboticsService/inserirPedido" method="GET" doc:name="ConsultaBrRobotics">
+            <http:request-builder>
+                <http:query-param paramName="cliente" value="#[payload.cliente]"/>
+                <http:query-param paramName="estado" value="#[payload.estado]"/>
+                <http:query-param paramName="endereco" value="#[payload.endereco]"/>
+                <http:query-param paramName="qtdRoboDomestico" value="#[payload.qtdRoboDomestico]"/>
+                <http:query-param paramName="qtdRoboSeguranca" value="#[payload.qtdRoboSeguranca]"/>
+                <http:query-param paramName="qtdRoboMedico" value="#[payload.qtdRoboMedico]"/>
+            </http:request-builder>
+            <http:success-status-code-validator values="200"/>
+        </http:request>
+        <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/>
+        <set-variable variableName="total_1" value="#[payload.total]" doc:name="Variavel: total_1"/>
+        <dw:transform-message doc:name="Payload: inserirPedido">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace ns0 http://ws.starksystem.com/
+---
+{
+	ns0#inserirPedido: {
+		pedido: {
+			cliente : flowVars.pedido_inicial.nome,
+			endereco : flowVars.endereco_completo.rua,
+			estado : flowVars.endereco_completo.estado,
+			qtdReatorArk : flowVars.pedido_inicial.qtdReatorArk,
+			qtdReatorSolar : flowVars.pedido_inicial.qtdReatorSolar
+		}
+	}	
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <ws:consumer config-ref="Web_Service_Consumer" operation="inserirPedido" doc:name="Web Service Consumer"/>
+        <json:xml-to-json-transformer doc:name="XML to JSON"/>
+        <scripting:component doc:name="Payload: total">
+            <scripting:script engine="jython" file="/Users/matuzalem/dev/engenharia-software-orientada-servicos/tutorials/newtec/src/main/python/get_total_soap.py"/>
+        </scripting:component>
+        <set-variable variableName="total" value="#[Float.parseFloat(flowVars.total_1) + Float.parseFloat(payload)]" doc:name="Variavel: total"/>
+        <logger message="FORNECEDORES: #[flowVars.total]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="CalculoComissao">
+        <rmi:outbound-endpoint method="calcularValorComComissao" methodArgumentTypes="float" connector-ref="RMI" address="rmi://127.0.0.1/CalculoComissaoService" responseTimeout="10000" doc:name="RMI"/>
+        <set-variable variableName="comissao" value="#[payload]" doc:name="Variavel: comissao"/>
+        <logger message="COMISSAO : #[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="CalculoFrete">
+        <scripting:component doc:name="Executa Calculo Frete">
+            <scripting:script engine="Groovy"><![CDATA[command = "lib/frete/calculoFrete-osx-x64 " + payload
+payload = command.execute().getText().replace("\n","")]]></scripting:script>
+        </scripting:component>
+        <choice doc:name="Trata Resultado Invalido">
+            <when expression="#[payload != '-1']">
+                <set-variable variableName="frete" value="#[payload]" doc:name="Variavel: frete"/>
+                <logger message="FRETE : #[payload]" level="INFO" doc:name="Logger"/>
+            </when>
+            <otherwise>
+                <scripting:component doc:name="Excecao Erro no Calculo de Frete">
+                    <scripting:script engine="Groovy"><![CDATA[throw new Exception("Erro ao consultar o valor do frete");]]></scripting:script>
+                </scripting:component>
+            </otherwise>
+        </choice>
+    </sub-flow>
+	<sub-flow name="ProcessaCartaoCredito" >
+        <component class="br.ufsc.das.TratarCartao" doc:name="Criar Objeto Cartao"/>
+        <choice doc:name="Escolhe Processador">
+            <when expression="#[flowVars.pedido_inicial.cartao.substring(0,1) == '4']">
+                <component class="br.ufsc.das.ProcessamentoVisa" doc:name="Processa VISA"/>
+            </when>
+            <when expression="#[Integer.parseInt(flowVars.pedido_inicial.cartao.substring(0,2)) &gt;= 51 &amp;&amp; Integer.parseInt(flowVars.pedido_inicial.cartao.substring(0,2)) &lt;= 55]">
+                <component class="br.ufsc.das.ProcessamentoMastercard" doc:name="Processa Mastercard"/>
+            </when>
+            <otherwise>
+                <scripting:component doc:name="Bandeira desconhecida">
+                    <scripting:script engine="Groovy"><![CDATA[throw new Exception("Bandeira do cartao desconhecida: " + flowVars.pedido_inicial.cartao);]]></scripting:script>
+                </scripting:component>
+            </otherwise>
+        </choice>
+        <set-variable variableName="autorizacao" value="#[payload.codigoAutorizacao]" doc:name="Variavel: autorizacao"/>
+        <logger message="CARTAO : #[flowVars.autorizacao]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="NotaFiscal">
+        <component class="br.ufsc.das.TratarPedidoNotaFiscal" doc:name="Criar Objeto Pedido"/>
+        <component class="br.ufsc.das.MontaXmlNotaFiscal" doc:name="Cria Nota Fiscal"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="/gerarNotaFiscal" method="POST" doc:name="HTTP">
+            <http:request-builder>
+                <http:header headerName="Content-Type" value="text/xml"/>
+                <http:header headerName="charset" value="UTF-8"/>
+            </http:request-builder>
+        </http:request>
+        <json:xml-to-json-transformer doc:name="XML to JSON"/>
+        <choice doc:name="Trata Resultado Invalido">
+            <when expression="#[message.inboundProperties.'http.status' == '200']">
+                <dw:transform-message doc:name="Variavel: nota_fiscal">
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+}]]></dw:set-payload>
+                    <dw:set-variable variableName="nota_fiscal"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	codigo : payload.emissaoNotaFiscal.numeroNotaFiscal,
+	url : payload.emissaoNotaFiscal.urlNotaFiscal
+}]]></dw:set-variable>
+                </dw:transform-message>
+                <logger message="NOTA FISCAL : #[flowVars.nota_fiscal]" level="INFO" doc:name="Logger"/>
+            </when>
+            <otherwise>
+                <scripting:component doc:name="Excecao Nota Fiscal">
+                    <scripting:script engine="Groovy"><![CDATA[throw new Exception("Erro ao Emitir Nota Fiscal");]]></scripting:script>
+                </scripting:component>
+            </otherwise>
+        </choice>
+    </sub-flow>
+    <sub-flow name="PersistirPedidoNewTec">
+        <db:insert config-ref="MySQL_Configuration" doc:name="Persiste Pedido">
+            <db:dynamic-query><![CDATA[INSERT INTO PEDIDOS (DIA, CLIENTE, CPF, EMAIL, CEP, ESTADO, CIDADE, BAIRRO, RUA, NUMERO_CC, VALIDADE_CC, AUTORIZACAO_CC, QTD_REATOR_SOLAR, QTD_REATOR_ARK, QTD_ROBO_DOMESTICO, QTD_ROBO_SEGURANCA, QTD_ROBO_MEDICO, FRETE, TOTAL, TOTAL_COM_COMISSAO) VALUES (now(), '#[payload.cliente]', '#[payload.cpf]', '#[payload.email]', '#[payload.cep]', '#[payload.estado]', '#[payload.cidade]',  '#[payload.bairro]', '#[payload.rua]', '#[payload.cartao]', '#[payload.validade]', '#[payload.autorizacao]', #[payload.qtdReatorSolar], #[payload.qtdReatorArk], #[payload.qtdRoboDomestico], #[payload.qtdRoboSeguranca], #[payload.qtdRoboMedico], #[payload.frete], #[payload.total], #[payload.comissao])]]></db:dynamic-query>
+        </db:insert>
+        <logger message="DB: Pedido salvo!" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="EmailCompra">
+        <set-property propertyName="emailCliente" value="#[payload.email]" doc:name="Adiciona endereco de email"/>
+        <scripting:component doc:name="Cria Corpo Mensagem">
+            <scripting:script engine="Groovy"><![CDATA[mensagem = 'NewTec - Pedido Realizado com Sucesso!\n\nDetalhes:\n\n'
+
+if(Double.parseDouble(payload.qtdReatorArk) > 0){
+	mensagem = mensagem + '* Reator ARK: ' + payload.qtdReatorArk + '\n';
+}
+
+if(Double.parseDouble(payload.qtdReatorSolar) > 0){
+	mensagem = mensagem + '* Reator Solar: ' + payload.qtdReatorSolar + '\n';
+}
+
+if(Double.parseDouble(payload.qtdRoboDomestico) > 0){
+	mensagem = mensagem + '* Robo Domestico: ' + payload.qtdRoboDomestico + '\n';
+}
+
+if(Double.parseDouble(payload.qtdRoboSeguranca) > 0){
+	mensagem = mensagem + '* Robo Seguranca: ' + payload.qtdRoboSeguranca + '\n';
+}
+
+if(Double.parseDouble(payload.qtdRoboMedico) > 0){
+	mensagem = mensagem + '* Robo Medico: ' + payload.qtdRoboMedico + '\n';
+}
+
+mensagem = mensagem + '\n================================================\n\nEndereço:\n\nDestinatário: '+payload.cliente+'\nCEP: '+payload.cep+'\nRua: '+payload.rua+'\nBairro: '+payload.bairro+'\nCidade: '+payload.cidade+'\nEstado: '+payload.estado+'\n\n================================================\n\nPagamento:\n\nCPF: '+payload.cpf+'\nMétodo de Pagamento: Cartão de Crédito\nAutorização: '+payload.autorizacao+ '\n\nTotal: R$'+payload.total+'\n\nNota Fiscal: ' + payload.nota_url;
+
+result = mensagem;]]></scripting:script>
+        </scripting:component>
+        <set-payload value="#[payload]" mimeType="text/plain" doc:name="Define Corpo Mensagem"/>
+        <smtps:outbound-endpoint host="smtp.host" port="123" user="senha" password="senha" to="#[message.outboundProperties.'emailCliente']" from="email@exemplo.com" subject="NewTec - Pedido Realizado com Sucesso" responseTimeout="10000" doc:name="Envia Confirmacao Pedido"/>
+        <logger message="EMAIL COMPRA : #[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+</mule>

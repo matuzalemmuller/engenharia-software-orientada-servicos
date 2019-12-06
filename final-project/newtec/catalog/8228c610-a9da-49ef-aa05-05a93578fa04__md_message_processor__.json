@@ -1,0 +1,29 @@
+{
+    "inputMessageMetadata": {
+        "flowVariables": {
+            "total": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "total"
+            },
+            "comissao": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "comissao"
+            },
+            "endereco_completo": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "endereco_completo"
+            },
+            "frete": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "frete"
+            },
+            "pedido_inicial": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "pedido_inicial"
+            }
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "8228c610-a9da-49ef-aa05-05a93578fa04",
+    "version": "5.2.0.0"
+}

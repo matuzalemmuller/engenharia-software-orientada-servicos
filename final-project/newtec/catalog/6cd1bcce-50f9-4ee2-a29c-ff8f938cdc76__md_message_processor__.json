@@ -1,0 +1,37 @@
+{
+    "inputMessageMetadata": {
+        "flowVariables": {
+            "autorizacao": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "autorizacao"
+            },
+            "total": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "total"
+            },
+            "nota_fiscal": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "nota_fiscal"
+            },
+            "comissao": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "comissao"
+            },
+            "endereco_completo": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "endereco_completo"
+            },
+            "frete": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "frete"
+            },
+            "pedido_inicial": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "pedido_inicial"
+            }
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "6cd1bcce-50f9-4ee2-a29c-ff8f938cdc76",
+    "version": "5.2.0.0"
+}

@@ -1,0 +1,17 @@
+{
+    "inputMessageMetadata": {
+        "flowVariables": {
+            "endereco_completo": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "endereco_completo"
+            },
+            "pedido_inicial": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "pedido_inicial"
+            }
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "a8469e26-d3a8-4594-a63b-eb51dd64ccb2",
+    "version": "5.2.0.0"
+}

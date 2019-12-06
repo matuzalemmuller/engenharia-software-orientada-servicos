@@ -34,7 +34,7 @@ public class GerarRelatorio {
 
 			// Cabecalho
 
-			String[] nomesColunasCabecalho = new String[] { "Código", "Cliente", "Endereço", "Estado", "Itens do Reator", "Itens do Robo" };
+			String[] nomesColunasCabecalho = new String[] { "Codigo", "Cliente", "Endereco", "Estado", "Itens do Reator", "Itens do Robo" };
 
 			HSSFRow cabecalho = sheet.createRow((short) 0);
 
@@ -50,7 +50,7 @@ public class GerarRelatorio {
 			}
 
 			// Linhas
-			// O indice começa em 0, 1 indica a segunda linha (a primeira após o cabeçalho)
+			// O indice comeca em 0, 1 indica a segunda linha (a primeira apos o cabecalho)
 			int i = 1;
 
 			for (Pedido p : pedidos) {
